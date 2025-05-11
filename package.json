@@ -1,0 +1,12 @@
+{
+    "name": "libranda-client",
+    "version": "0.1.0",
+    "description": "A library for the client to connect to libranda-server",
+    "main": "src/index.js",
+    "type": "module",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "MVDW-Java",
+    "license": "AGPL-3.0-only"
+}
