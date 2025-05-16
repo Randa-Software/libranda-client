@@ -1,13 +1,31 @@
 {
     "name": "libranda-client",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "A library for the client to connect to libranda-server",
     "main": "src/index.js",
-    "types": "src/index.d.ts", 
+    "types": "src/index.d.ts",
     "type": "module",
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
     },
+    "dependencies": {
+        "ws": "^8.13.0"
+    },
+    "peerDependencies": {
+        "ws": "^8.13.0"
+    },
+    "exports": {
+        ".": "./src/index.js"
+    },
+    "engines": {
+        "node": ">=14.0.0"
+    },
+    "keywords": [
+        "websocket",
+        "client",
+        "browser",
+        "node"
+    ],
     "author": "MVDW-Java",
     "license": "AGPL-3.0-only"
 }

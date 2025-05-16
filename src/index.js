@@ -1,6 +1,23 @@
+// Determine the environment and get the appropriate WebSocket implementation
+let WebSocketImpl;
+if (typeof window !== "undefined") {
+    WebSocketImpl = WebSocket;
+} else {
+    const { WebSocket: NodeWebSocket } = await import("ws");
+    WebSocketImpl = NodeWebSocket;
+}
+
+// Helper function to get the host
+const getDefaultHost = () => {
+    if (typeof window !== "undefined") {
+        return window.location.host;
+    }
+    return "localhost:8080";
+};
+
 export class LibrandaClient {
     constructor(options = {}) {
-        this.url = options.url || `ws://${window.location.host}`;
+        this.url = options.url || `ws://${getDefaultHost()}`;
         this.autoReconnect = options.autoReconnect !== false;
         this.reconnectInterval = options.reconnectInterval || 5000;
         this.eventHandlers = new Map(); // namespace -> Map(event -> Set(callbacks))
@@ -13,9 +30,11 @@ export class LibrandaClient {
     }
 
     connect() {
-        if (this.ws && 
-            (this.ws.readyState === WebSocket.CONNECTING || 
-             this.ws.readyState === WebSocket.OPEN)) {
+        if (
+            this.ws &&
+            (this.ws.readyState === WebSocketImpl.CONNECTING ||
+                this.ws.readyState === WebSocketImpl.OPEN)
+        ) {
             return;
         }
 
@@ -24,7 +43,7 @@ export class LibrandaClient {
         }
 
         this.isConnecting = true;
-        this.ws = new WebSocket(this.url);
+        this.ws = new WebSocketImpl(this.url);
 
         this.ws.onopen = () => {
             this.isConnecting = false;
@@ -40,7 +59,10 @@ export class LibrandaClient {
             this.clientId = null;
             this._handleEvent("system", "disconnected", null);
             if (this.autoReconnect) {
-                this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectInterval);
+                this.reconnectTimer = setTimeout(
+                    () => this.connect(),
+                    this.reconnectInterval,
+                );
             }
         };
 
@@ -53,14 +75,21 @@ export class LibrandaClient {
                 const message = JSON.parse(event.data);
                 if (message.namespace && message.event) {
                     // Handle system init message that provides client ID
-                    if (message.namespace === "system" && message.event === "init") {
+                    if (
+                        message.namespace === "system" &&
+                        message.event === "init"
+                    ) {
                         this.clientId = message.data.clientId;
                         // If there's a ready callback, execute it
                         if (this.onReady) {
                             this.onReady(this.clientId);
                         }
                     }
-                    this._handleEvent(message.namespace, message.event, message.data);
+                    this._handleEvent(
+                        message.namespace,
+                        message.event,
+                        message.data,
+                    );
                 }
             } catch (error) {
                 console.error("Failed to parse WebSocket message:", error);
@@ -98,18 +127,20 @@ export class LibrandaClient {
     }
 
     send(namespace, event, data = {}) {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        if (!this.ws || this.ws.readyState !== WebSocketImpl.OPEN) {
             throw new Error("WebSocket is not connected");
         }
 
-        this.ws.send(JSON.stringify({
-            namespace,
-            event,
-            data: {
-                ...data,
-                metadata: this.metadata
-            }
-        }));
+        this.ws.send(
+            JSON.stringify({
+                namespace,
+                event,
+                data: {
+                    ...data,
+                    metadata: this.metadata,
+                },
+            }),
+        );
     }
 
     setMetadata(metadata) {
@@ -139,16 +170,24 @@ export class LibrandaClient {
             try {
                 callback(data);
             } catch (err) {
-                console.error(`Error in event handler (${namespace}:${event}):`, err);
+                console.error(
+                    `Error in event handler (${namespace}:${event}):`,
+                    err,
+                );
             }
         }
     }
 
     isConnected() {
-        return this.ws && this.ws.readyState === WebSocket.OPEN;
+        return this.ws && this.ws.readyState === WebSocketImpl.OPEN;
     }
 
     getId() {
         return this.clientId;
     }
+}
+
+// CommonJS module exports
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = { LibrandaClient };
 }
