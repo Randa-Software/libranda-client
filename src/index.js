@@ -27,6 +27,7 @@ export class LibrandaClient {
         this.clientId = null;
         this.metadata = {};
         this.onReady = null;
+        this.plugins = new Map(); // pluginId -> plugin instance
     }
 
     connect() {
@@ -97,6 +98,52 @@ export class LibrandaClient {
         };
     }
 
+    registerPlugin(plugin) {
+        if (!plugin.id) {
+            throw new Error("Plugin must have an id property");
+        }
+        if (this.plugins.has(plugin.id)) {
+            throw new Error(
+                `Plugin with id ${plugin.id} is already registered`,
+            );
+        }
+
+        // Create plugin API
+        const api = {
+            send: (namespace, event, data) => this.send(namespace, event, data),
+            registerEvent: (namespace, event, callback) =>
+                this.registerEvent(namespace, event, callback),
+            getPluginType: () => {
+                return "client";
+            },
+        };
+
+        this.plugins.set(plugin.id, plugin);
+        if (typeof plugin.initialize === "function") {
+            plugin.initialize(api);
+        }
+
+        return () => this.unregisterPlugin(plugin.id);
+    }
+
+    unregisterPlugin(pluginId) {
+        const plugin = this.plugins.get(pluginId);
+        if (plugin) {
+            if (typeof plugin.cleanup === "function") {
+                try {
+                    plugin.cleanup();
+                } catch (err) {
+                    console.error(`Error cleaning up plugin ${pluginId}:`, err);
+                }
+            }
+            this.plugins.delete(pluginId);
+        }
+    }
+
+    getPlugins() {
+        return Array.from(this.plugins.values());
+    }
+
     disconnect() {
         if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
@@ -108,6 +155,12 @@ export class LibrandaClient {
             this.ws.close();
             this.ws = null;
             this.clientId = null;
+
+            // Clean up plugins
+            for (const [pluginId] of this.plugins) {
+                this.unregisterPlugin(pluginId);
+            }
+            this.plugins.clear();
         }
     }
 
