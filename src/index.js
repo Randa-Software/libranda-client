@@ -7,17 +7,18 @@ if (typeof window !== "undefined") {
     WebSocketImpl = NodeWebSocket;
 }
 
-// Helper function to get the host
+// Helper function to get the host and protocol
 const getDefaultHost = () => {
     if (typeof window !== "undefined") {
-        return window.location.host;
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        return `${protocol}://${window.location.host}`;
     }
-    return "localhost:8080";
+    return "ws://localhost:8080";
 };
 
 export class LibrandaClient {
     constructor(options = {}) {
-        this.url = options.url || `ws://${getDefaultHost()}`;
+        this.url = options.url || getDefaultHost();
         this.autoReconnect = options.autoReconnect !== false;
         this.reconnectInterval = options.reconnectInterval || 5000;
         this.eventHandlers = new Map(); // namespace -> Map(event -> Set(callbacks))
