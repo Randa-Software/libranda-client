@@ -196,6 +196,40 @@ export class LibrandaClient {
             }),
         );
     }
+    request(namespace, event, data = {}, callback) {
+        if (!this.ws || this.ws.readyState !== WebSocketImpl.OPEN) {
+            throw new Error("WebSocket is not connected");
+        }
+
+        const replyId = crypto.randomUUID();
+        this.ws.send(
+            JSON.stringify({
+                namespace,
+                event,
+                reply_id: replyId,
+                data: {
+                    ...data,
+                    metadata: this.metadata,
+                },
+            }),
+        );
+
+        const handleReply = (replyMessage) => {
+            const reply_data = JSON.parse(replyMessage.data);
+            if (reply_data.reply_id === replyId) {
+                clearTimeout(timeout);
+                callback(reply_data.data);
+                this.ws.removeEventListener("message", handleReply);
+            }
+        };
+
+        const timeout = setTimeout(() => {
+            this.ws.removeEventListener("message", handleReply);
+            console.error("Request with id '" + replyId + "' timed out");
+        }, 5000); // 5 seconds timeout
+
+        this.ws.addEventListener("message", handleReply);
+    }
 
     setMetadata(metadata) {
         this.metadata = { ...this.metadata, ...metadata };
